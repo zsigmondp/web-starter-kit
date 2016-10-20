@@ -34,6 +34,13 @@ import gulpLoadPlugins from 'gulp-load-plugins';
 import {output as pagespeed} from 'psi';
 import pkg from './package.json';
 
+var minifyInline = require('gulp-minify-inline');
+var replace = require('gulp-replace');
+var imageResize = require('gulp-image-resize');
+var rename = require("gulp-rename");
+var parallel = require("concurrent-transform");
+var os = require('os');
+
 const $ = gulpLoadPlugins();
 const reload = browserSync.reload;
 
@@ -55,6 +62,33 @@ gulp.task('images', () =>
     .pipe(gulp.dest('dist/images'))
     .pipe($.size({title: 'images'}))
 );
+
+// Resize images
+/* example*/
+gulp.task('resize', function () {
+  gulp.src('app/images/**/*')
+    .pipe(imageResize({
+      width : 550,
+      height : 550,
+      crop : true,
+      upscale : false
+    }))
+    .pipe(gulp.dest('dist/images'));
+});
+
+//Resize and optimize images
+gulp.task('resize-optimize',  () =>
+  gulp.src('app/images/**/*')
+  .pipe(parallel(
+    imageResize({ width : 200 }),
+    os.cpus().length
+  )).pipe($.cache($.imagemin({  progressive: true,  interlaced: true})))
+  .pipe(rename(function (path) { path.basename += "-thumbnail";}))
+  .pipe(gulp.dest('dist/images'))
+  .pipe($.size({title: 'images'}))
+);
+
+
 
 // Copy all files at the root level (app)
 gulp.task('copy', () =>
@@ -148,6 +182,25 @@ gulp.task('html', () => {
     // Output files
     .pipe($.if('*.html', $.size({title: 'html', showFiles: true})))
     .pipe(gulp.dest('dist'));
+});
+
+// Minify inline
+gulp.task('minify-inline', function() {
+  gulp.src('app/*.html')
+    .pipe(minifyInline())
+    .pipe(gulp.dest('dist/'))
+});
+
+/* Find and Replace 'index_300x250.html','index_300x600.html','index_640x360.html','index_970x90.html'*/
+gulp.task('find-replace', function(){
+  gulp.src(['app/*.html'])
+  .pipe(replace('gwdAd', 'gwdA'))
+  .pipe(replace('gwd-ad', 'gwd-a'))
+  .pipe(replace('initAd', 'initA'))
+  .pipe(replace('handleAdInitialized', 'handleAInitialized'))
+  .pipe(replace('gwd-genericad', 'gwd-generica'))
+  .pipe(replace('gwdgenericad_min.js', 'gwdgenerica_min.js'))
+  .pipe(gulp.dest('dist/'));
 });
 
 // Clean output directory
